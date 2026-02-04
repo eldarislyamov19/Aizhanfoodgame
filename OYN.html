@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+<meta charset="UTF-8">
+<title>Пайдалы және зиянды тағамдар</title>
+
+<style>
+body{
+margin:0;
+font-family:Arial,sans-serif;
+background:linear-gradient(#b3e5fc,#e1f5fe);
+text-align:center;
+}
+
+.top{
+display:flex;
+justify-content:space-around;
+align-items:center;
+font-size:22px;
+flex-wrap:wrap;
+}
+
+button{
+font-size:18px;
+padding:8px 20px;
+border:none;
+border-radius:20px;
+cursor:pointer;
+margin:5px;
+}
+
+.finish{background:#81c784;display:none;}
+.restart{background:#ffca28;}
+.music{background:#90caf9;}
+
+.food{
+display:inline-flex;
+align-items:center;
+justify-content:center;
+width:140px;
+height:140px;
+margin:12px;
+background:white;
+border-radius:25px;
+box-shadow:0 4px 8px rgba(0,0,0,.25);
+touch-action:none;
+}
+
+.food img{
+max-width:130px;
+max-height:130px;
+pointer-events:none;
+}
+
+.container{
+display:flex;
+justify-content:space-around;
+padding:20px;
+}
+
+.box{
+width:40%;
+min-height:300px;
+border-radius:30px;
+font-size:24px;
+padding:10px;
+}
+
+.healthy{background:#c8e6c9;border:4px dashed #2e7d32;}
+.junk{background:#ffcdd2;border:4px dashed #c62828;}
+
+.modal{
+position:fixed;
+inset:0;
+background:rgba(0,0,0,.4);
+display:none;
+align-items:center;
+justify-content:center;
+}
+
+.modal-content{
+background:white;
+padding:30px 50px;
+border-radius:40px;
+font-size:28px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🍽️ Дұрыс топқа сал</h1>
+
+<div class="top">
+<div>⏱️ <span id="time">00:00</span></div>
+<div>⭐ <span id="stars">0</span></div>
+
+<button class="music" onclick="toggleMusic()">🔊</button>
+<button class="music" onclick="toggleFullscreen()" id="fsBtn">⛶</button>
+<button class="restart" onclick="restartGame()">Қайта ойнау</button>
+<button class="finish" id="finishBtn" onclick="finishGame()">Аяқтау</button>
+</div>
+
+<div id="foods"></div>
+
+<div class="container">
+<div class="box healthy" data-accept="healthy">✅ ПАЙДАЛЫ</div>
+<div class="box junk" data-accept="junk">❌ ЗИЯНДЫ</div>
+</div>
+
+<div class="modal" id="modal">
+<div class="modal-content" id="modalText"></div>
+</div>
+
+<audio id="bgm" src="music.mp3" loop></audio>
+
+<script>
+
+// MUSIC
+const music=document.getElementById("bgm");
+let musicOn=true;
+
+document.addEventListener("pointerdown",()=>{
+music.play().catch(()=>{});
+},{once:true});
+
+function toggleMusic(){
+if(musicOn){
+music.pause();
+musicOn=false;
+}else{
+music.play();
+musicOn=true;
+}
+}
+
+// FULLSCREEN BUTTON
+const fsBtn=document.getElementById("fsBtn");
+
+function toggleFullscreen(){
+if(!document.fullscreenElement){
+document.documentElement.requestFullscreen();
+fsBtn.textContent="❎";
+}else{
+document.exitFullscreen();
+fsBtn.textContent="⛶";
+}
+}
+
+// GAME DATA
+const foodsData=[
+["png-red-apple-isolated-white-background.jpg","healthy"],
+["whole-yellow-orange-isolated-white.jpg","healthy"],
+["realistic-vector-icon-illustration-milk-jug-splash-fresh-milk-isolated-white-backgro.png","healthy"],
+["ai-generated-image-banana.jpg","healthy"],
+["tomato-isolated.jpg","healthy"],
+["flat-lay-2-eggplants-horizontal.jpg","healthy"],
+
+["full_cola_big.png","junk"],
+["11475300.png","junk"],
+["b0d3988f-57f7-466f-a7ed-08a2e32a1d90.jpg","junk"],
+["identist-zhvachka1.png","junk"],
+["8dafee05-2af4-4243-8791-4090fd5d2c8d.jpg","junk"],
+["R1.jpg","junk"]
+];
+
+const foodsArea=document.getElementById("foods");
+const boxes=document.querySelectorAll(".box");
+const modal=document.getElementById("modal");
+const modalText=document.getElementById("modalText");
+const starsEl=document.getElementById("stars");
+const finishBtn=document.getElementById("finishBtn");
+const timeEl=document.getElementById("time");
+
+let stars=0,done=0,current=null,time=0,timer;
+
+// TIMER
+function startTimer(){
+clearInterval(timer);
+timer=setInterval(()=>{
+time++;
+let m=Math.floor(time/60);
+let s=time%60;
+if(s<10)s="0"+s;
+if(m<10)m="0"+m;
+timeEl.textContent=m+":"+s;
+},1000);
+}
+
+// SHUFFLE
+function shuffle(a){
+for(let i=a.length-1;i>0;i--){
+const j=Math.floor(Math.random()*(i+1));
+[a[i],a[j]]=[a[j],a[i]];
+}
+}
+
+// CREATE FOODS
+function createFoods(){
+foodsArea.innerHTML="";
+shuffle(foodsData);
+
+foodsData.forEach(([src,type])=>{
+const f=document.createElement("div");
+f.className="food";
+f.dataset.type=type;
+
+const img=document.createElement("img");
+img.src=src;
+f.appendChild(img);
+foodsArea.appendChild(f);
+
+f.addEventListener("pointerdown",e=>{
+
+// RETURN FROM BOX
+if(f.parentElement.classList.contains("box")){
+foodsArea.appendChild(f);
+stars--;done--;
+if(stars<0)stars=0;
+starsEl.textContent=stars;
+return;
+}
+
+current=f;
+f.setPointerCapture(e.pointerId);
+});
+
+f.addEventListener("pointermove",e=>{
+if(!current)return;
+f.style.position="absolute";
+f.style.left=e.clientX-70+"px";
+f.style.top=e.clientY-70+"px";
+});
+
+f.addEventListener("pointerup",e=>{
+if(!current)return;
+
+boxes.forEach(box=>{
+const b=box.getBoundingClientRect();
+if(e.clientX>b.left&&e.clientX<b.right&&e.clientY>b.top&&e.clientY<b.bottom){
+if(f.dataset.type===box.dataset.accept){
+box.appendChild(f);
+stars++;done++;
+starsEl.textContent=stars;
+show("⭐ Дұрыс!");
+}else show("❌ Ойланып көр, балақай!");
+}
+});
+
+f.style.position="static";
+current=null;
+if(done===foodsData.length)finishBtn.style.display="inline-block";
+});
+});
+}
+
+// MODAL
+function show(t){
+modalText.textContent=t;
+modal.style.display="flex";
+setTimeout(()=>modal.style.display="none",700);
+}
+
+// FINISH
+function finishGame(){
+music.pause();
+show("🎉 Жарайсың, балақай!");
+}
+
+// RESTART
+function restartGame(){
+
+music.pause();
+music.currentTime=0;
+if(musicOn) music.play();
+
+boxes.forEach(box=>{
+box.innerHTML = box.dataset.accept==="healthy" ? "✅ ПАЙДАЛЫ" : "❌ ЗИЯНДЫ";
+});
+
+stars=0;
+done=0;
+time=0;
+
+starsEl.textContent=0;
+timeEl.textContent="00:00";
+finishBtn.style.display="none";
+
+createFoods();
+startTimer();
+}
+
+createFoods();
+startTimer();
+
+</script>
+
+</body>
+</html>
